@@ -1,4 +1,4 @@
-const { spawn } = require("child_process");
+const { spawn, spawnSync } = require("child_process");
 const fs = require("fs");
 const readline = require("readline");
 
@@ -103,27 +103,24 @@ class AdbEventRecorder {
     });
   }
 
-  play(fpath, repeat = false) {
+  async play(fpath, repeat = false) {
     ilog("Start playing");
-
+    let lastTs = null;
     const lines = fs.readFileSync(fpath, "utf-8").split("\n");
-    for (const line of lines) {
+    lines.forEach(async (line) => {
       const match = line.match(STORE_LINE_RE);
-      if (!match) continue;
-      const [, ts, dev, etype, ecode, data] = match;
+      if(!match) return;
+      const [ts, dev, etype, ecode, data, last] = match;
       const tsMillis = parseFloat(ts);
-      const cmds = ["shell", "sendevent", dev, etype, ecode, data];
-      dlog(cmds);
 
-      const result = spawn("adb", cmds);
-      if (result.status !== 0) {
-        throw new Error("sendevent failed");
+      if (lastTs && tsMillis - lastTs > 0) {
+          const deltaSecond = (tsMillis - lastTs) / 1000;
+          await new Promise((resolve) => setTimeout(resolve, deltaSecond * 1000));
       }
 
-      if (!repeat) {
-        break;
-      }
-    }
+      lastTs = tsMillis;
+      spawnSync("adb", ["shell", "sendevent", etype, ecode, data, last]);
+    })
 
     ilog("End playing");
   }
