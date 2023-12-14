@@ -17,9 +17,7 @@ class Colors {
 }
 
 const dlog = (msg) => console.log(String(msg));
-
 const ilog = (msg) => console.log(`${Colors.OKBLUE}${msg}${Colors.ENDC}`);
-
 const elog = (msg) => console.log(`${Colors.FAIL}${msg}${Colors.ENDC}`);
 
 class AdbEventRecorder {
@@ -45,7 +43,7 @@ class AdbEventRecorder {
 
   checkPermission() {
     ilog("Checking permission");
-    const result = spawn("adb", ["shell", "root"]);
+    const result = spawn("adb", ["root"]);
     if (result.status !== 0) {
       throw new Error("Insufficient permissions");
     }
@@ -114,7 +112,7 @@ class AdbEventRecorder {
       if (!match) continue;
       const [, ts, dev, etype, ecode, data] = match;
       const tsMillis = parseFloat(ts);
-      const cmds = ["sendevent", dev, etype, ecode, data];
+      const cmds = ["shell", "sendevent", dev, etype, ecode, data];
       dlog(cmds);
 
       const result = spawn("adb", cmds);
@@ -138,7 +136,7 @@ function main() {
   adb_recorder.listAllEvent();
 
   if (process.argv.includes("--record")) {
-    adb_recorder.checkPermission();
+    // adb_recorder.checkPermission(); TODO: Fix & enable it
     const recordPath = process.argv[process.argv.indexOf("--record") + 1];
     adb_recorder.record(
       recordPath,
