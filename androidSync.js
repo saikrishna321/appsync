@@ -75,9 +75,9 @@ class AdbEventRecorder {
 
   record(fpath, eventNum = null) {
     ilog("Start recording");
-    const adb = spawn("adb", ["shell", "getevent"]);
+    const adb = spawn("adb", ["-s", process.env.MASTER_DEVICE, "shell", "getevent"]);
     const outputFile = fs.createWriteStream(fpath);
-
+    const devices = process.argv.slice(4);
     const rl = readline.createInterface({ input: adb.stdout });
 
     rl.on("line", (line) => {
@@ -93,6 +93,15 @@ class AdbEventRecorder {
           16
         )} ${parseInt(data, 16)}\n`;
         dlog(rline);
+        const type = `${parseInt(etype, 16)}`;
+        const code = `${parseInt(ecode,16)}`;
+        const dataParsed = `${parseInt(data, 16)}`;
+        console.log(devices)
+        devices.forEach(device => {
+          console.log(device, ["-s", `${device}`, "shell", "sendevent", dev, type, code, dataParsed])
+          spawnSync("adb", ["-s", `${device}`, "shell", "sendevent", dev, type, code, dataParsed]);
+
+        })
         outputFile.write(rline);
       }
     });
@@ -103,27 +112,30 @@ class AdbEventRecorder {
     });
   }
 
-  async play(fpath, repeat = false) {
-    ilog("Start playing");
-    let lastTs = null;
-    const lines = fs.readFileSync(fpath, "utf-8").split("\n");
-    lines.forEach(async (line) => {
-      const match = line.match(STORE_LINE_RE);
-      if(!match) return;
-      const [ts, dev, etype, ecode, data, last] = match;
-      const tsMillis = parseFloat(ts);
+  // async play(fpath, repeat = false) {
+  //   ilog("Start playing");
+  //   let lastTs = null;
+  //   const args = process.argv.slice(4);
 
-      if (lastTs && tsMillis - lastTs > 0) {
-          const deltaSecond = (tsMillis - lastTs) / 1000;
-          await new Promise((resolve) => setTimeout(resolve, deltaSecond * 1000));
-      }
+  //   const lines = fs.readFileSync(fpath, "utf-8").split("\n");
+  //   lines.forEach(async (line) => {
+  //     const match = line.match(STORE_LINE_RE);
+  //     if(!match) return;
+  //     const [ts, dev, etype, ecode, data, last] = match;
+  //     const tsMillis = parseFloat(ts);
 
-      lastTs = tsMillis;
-      spawnSync("adb", ["shell", "sendevent", etype, ecode, data, last]);
-    })
+  //     if (lastTs && tsMillis - lastTs > 0) {
+  //         const deltaSecond = (tsMillis - lastTs) / 1000;
+  //         await new Promise((resolve) => setTimeout(resolve, deltaSecond * 1000));
+  //     }
+  //     lastTs = tsMillis;
+  //     args.forEach(device => {
+  //       spawnSync("adb", ["-s", `${device}`, "shell", "sendevent", etype, ecode, data, last]);
+  //     })
+  //   })
 
-    ilog("End playing");
-  }
+  //   ilog("End playing");
+  // }
 }
 
 function main() {
